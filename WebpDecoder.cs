@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Windows;
 using System.Windows.Media.Imaging;
 
 namespace QuickLook.Plugin.ComfyWebpViewer
@@ -56,7 +57,12 @@ namespace QuickLook.Plugin.ComfyWebpViewer
                         if (source == null)
                             break;
 
-                        var frozen = (BitmapSource)source.GetAsFrozen();
+                        // WebP files often store 72 DPI. WPF uses that to compute the natural
+                        // DIP size (PixelWidth/DpiX*96), which breaks Stretch=None and our
+                        // pixel-based fit/zoom math. Normalize every frame to 96 DPI so DIP
+                        // size equals pixel size.
+                        var normalized = NormalizeDpi(source);
+                        var frozen = (BitmapSource)normalized.GetAsFrozen();
                         frozen.Freeze();
                         result.Frames.Add(frozen);
                     }
@@ -72,6 +78,44 @@ namespace QuickLook.Plugin.ComfyWebpViewer
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// WIC reports WebP frames with the DPI stored in the file (often 72). WPF treats
+        /// the natural size as PixelWidth/DpiX*96, so a 1504px@72dpi image has a natural
+        /// DIP size of 2005x1109. With Stretch=None that causes the image to be clipped
+        /// when we constrain it to PixelWidth x PixelHeight. Re-create the bitmap at 96
+        /// DPI so DIP size equals pixel size and all zoom/fit math is consistent.
+        /// </summary>
+        private static BitmapSource NormalizeDpi(BitmapSource source)
+        {
+            if (Math.Abs(source.DpiX - 96.0) < 0.01 && Math.Abs(source.DpiY - 96.0) < 0.01)
+                return source;
+
+            var wb = new WriteableBitmap(
+                source.PixelWidth,
+                source.PixelHeight,
+                96.0,
+                96.0,
+                source.Format,
+                source.Palette);
+
+            wb.Lock();
+            try
+            {
+                source.CopyPixels(
+                    Int32Rect.Empty,
+                    wb.BackBuffer,
+                    wb.BackBufferStride * wb.PixelHeight,
+                    wb.BackBufferStride);
+                wb.AddDirtyRect(new Int32Rect(0, 0, wb.PixelWidth, wb.PixelHeight));
+            }
+            finally
+            {
+                wb.Unlock();
+            }
+
+            return wb;
         }
 
         private static void BuildDelays(WebpDecodeResult result, WebpFile info)

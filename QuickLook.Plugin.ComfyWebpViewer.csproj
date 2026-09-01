@@ -1,0 +1,51 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net462</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>false</UseWindowsForms>
+    <AssemblyName>QuickLook.Plugin.ComfyWebpViewer</AssemblyName>
+    <RootNamespace>QuickLook.Plugin.ComfyWebpViewer</RootNamespace>
+    <LangVersion>8.0</LangVersion>
+    <Nullable>disable</Nullable>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <OutputPath>bin\</OutputPath>
+    <BaseIntermediateOutputPath>obj\</BaseIntermediateOutputPath>
+    <DebugType>none</DebugType>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <AutoGenerateBindingRedirects>false</AutoGenerateBindingRedirects>
+    <Deterministic>true</Deterministic>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <Company>QuickLook</Company>
+    <Product>QuickLook.Plugin.ComfyWebpViewer</Product>
+    <Description>Previews WebP images produced by ComfyUI (static and animated), including the embedded workflow metadata.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="QuickLook.Common">
+      <HintPath>$(MSBuildThisFileDirectory)..\..\QuickLook.Common.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="System.Xaml" />
+    <Reference Include="WindowsBase" />
+    <Reference Include="PresentationCore" />
+    <Reference Include="PresentationFramework" />
+  </ItemGroup>
+
+  <!-- Deploy straight into the QuickLook plugin folder. -->
+  <Target Name="DeployPlugin" AfterTargets="Build">
+    <ItemGroup>
+      <_DeployFiles Include="$(TargetPath)" />
+      <_DeployFiles Include="$(MSBuildThisFileDirectory)Translations.config" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_DeployFiles)"
+          DestinationFolder="$(MSBuildThisFileDirectory)..\..\QuickLook.Plugin\QuickLook.Plugin.ComfyWebpViewer"
+          SkipUnchangedFiles="false" />
+  </Target>
+
+</Project>

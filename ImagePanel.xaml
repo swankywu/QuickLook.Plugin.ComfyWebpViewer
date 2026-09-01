@@ -1,0 +1,196 @@
+<UserControl x:Class="QuickLook.Plugin.ComfyWebpViewer.ImagePanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="#FF1C1C1C"
+             Foreground="#FFE6E6E6"
+             UseLayoutRounding="True"
+             SnapsToDevicePixels="True"
+             Focusable="True">
+
+    <UserControl.Resources>
+        <!-- Transparency checkerboard, only shown when the image has an alpha channel. -->
+        <DrawingBrush x:Key="Checkerboard" TileMode="Tile" Viewport="0,0,16,16" ViewportUnits="Absolute">
+            <DrawingBrush.Drawing>
+                <DrawingGroup>
+                    <GeometryDrawing Brush="#FF2A2A2A">
+                        <GeometryDrawing.Geometry>
+                            <RectangleGeometry Rect="0,0,16,16" />
+                        </GeometryDrawing.Geometry>
+                    </GeometryDrawing>
+                    <GeometryDrawing Brush="#FF333333">
+                        <GeometryDrawing.Geometry>
+                            <RectangleGeometry Rect="0,0,8,8" />
+                        </GeometryDrawing.Geometry>
+                    </GeometryDrawing>
+                    <GeometryDrawing Brush="#FF333333">
+                        <GeometryDrawing.Geometry>
+                            <RectangleGeometry Rect="8,8,8,8" />
+                        </GeometryDrawing.Geometry>
+                    </GeometryDrawing>
+                </DrawingGroup>
+            </DrawingBrush.Drawing>
+        </DrawingBrush>
+
+        <Style x:Key="BarButton" TargetType="ButtonBase">
+            <Setter Property="Foreground" Value="#FFE6E6E6" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="8,4" />
+            <Setter Property="Margin" Value="2,0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ButtonBase">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                                CornerRadius="3" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#33FFFFFF" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#55FFFFFF" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Foreground" Value="#66FFFFFF" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="AccentButton" TargetType="ButtonBase" BasedOn="{StaticResource BarButton}">
+            <Setter Property="Foreground" Value="#FF7EC4FF" />
+        </Style>
+
+        <Style x:Key="MetaLabel" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#FF8E8E8E" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Margin" Value="0,0,8,0" />
+            <Setter Property="MinWidth" Value="72" />
+        </Style>
+
+        <Style x:Key="MetaValue" TargetType="TextBox">
+            <Setter Property="Foreground" Value="#FFE6E6E6" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="IsReadOnly" Value="True" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Cursor" Value="IBeam" />
+        </Style>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- content -->
+        <Grid Grid.Row="0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <!-- viewport -->
+            <Grid x:Name="Viewport" Grid.Column="0" ClipToBounds="True">
+                <Border x:Name="CheckerLayer" Background="{StaticResource Checkerboard}"
+                        Visibility="Collapsed" />
+                <ScrollViewer x:Name="Scroller"
+                              HorizontalScrollBarVisibility="Auto"
+                              VerticalScrollBarVisibility="Auto"
+                              Background="Transparent"
+                              Focusable="False"
+                              PanningMode="Both">
+                    <Grid x:Name="ImgHost" HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <Image x:Name="Img"
+                               Stretch="None"
+                               RenderOptions.BitmapScalingMode="HighQuality"
+                               SnapsToDevicePixels="True" />
+                    </Grid>
+                </ScrollViewer>
+
+                <TextBlock x:Name="Placeholder"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                           TextWrapping="Wrap" TextAlignment="Center"
+                           Margin="24" Foreground="#FFB0B0B0" FontSize="13"
+                           Visibility="Collapsed" />
+            </Grid>
+
+            <!-- metadata drawer -->
+            <Border x:Name="Drawer" Grid.Column="1" Width="360"
+                    Background="#FF222225" BorderBrush="#FF3A3A3D"
+                    BorderThickness="1,0,0,0" Visibility="Collapsed">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <Grid Grid.Row="0" Margin="10,8">
+                        <TextBlock Text="ComfyUI 元数据"
+                                   FontSize="13" FontWeight="SemiBold"
+                                   Foreground="#FF7EC4FF" VerticalAlignment="Center" />
+                        <Button Content="✕" Style="{StaticResource BarButton}"
+                                HorizontalAlignment="Right"
+                                ToolTip="关闭"
+                                Click="OnCloseDrawer" />
+                    </Grid>
+
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled"
+                                  Padding="10,0,10,12">
+                        <StackPanel x:Name="MetaStack" />
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- status bar -->
+        <Border Grid.Row="1" Background="#FF252528" BorderBrush="#FF3A3A3D"
+                BorderThickness="0,1,0,0" Padding="8,5">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <TextBlock x:Name="InfoText" Grid.Column="0"
+                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                           FontSize="12" Foreground="#FFB8B8B8" />
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+
+                    <!-- animation controls (only when the file has more than one frame) -->
+                    <StackPanel x:Name="AnimBar" Orientation="Horizontal" Visibility="Collapsed">
+                        <Button x:Name="PlayButton" Content="❚❚" Style="{StaticResource BarButton}"
+                                Width="30" ToolTip="播放 / 暂停" Click="OnTogglePlay" />
+                        <Slider x:Name="FrameSlider" Width="130" VerticalAlignment="Center"
+                                Minimum="0" Maximum="0" IsSnapToTickEnabled="True" TickFrequency="1"
+                                Margin="6,0" Visibility="Collapsed"
+                                ValueChanged="OnFrameSliderChanged" />
+                        <TextBlock x:Name="FrameText" VerticalAlignment="Center" FontSize="12"
+                                   Foreground="#FFB8B8B8" Margin="6,0,10,0" MinWidth="60" />
+                    </StackPanel>
+
+                    <Button x:Name="MetaButton" Content="元数据" Style="{StaticResource AccentButton}"
+                            Click="OnToggleDrawer" />
+                    <Button Content="－" Style="{StaticResource BarButton}" Width="28"
+                            ToolTip="缩小" Click="OnZoomOut" />
+                    <TextBlock x:Name="ZoomText" VerticalAlignment="Center" FontSize="12"
+                               Foreground="#FFB8B8B8" MinWidth="46" TextAlignment="Center" />
+                    <Button Content="＋" Style="{StaticResource BarButton}" Width="28"
+                            ToolTip="放大" Click="OnZoomIn" />
+                    <Button Content="适应" Style="{StaticResource BarButton}"
+                            ToolTip="适应窗口 (双击图像)" Click="OnFit" />
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

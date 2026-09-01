@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Windows;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
 namespace QuickLook.Plugin.ComfyWebpViewer
@@ -92,18 +93,24 @@ namespace QuickLook.Plugin.ComfyWebpViewer
             if (Math.Abs(source.DpiX - 96.0) < 0.01 && Math.Abs(source.DpiY - 96.0) < 0.01)
                 return source;
 
+            // The WebP WIC decoder may return pixel formats (e.g. 24bpp BGR) that
+            // WriteableBitmap does not accept. Convert to a guaranteed-supported format
+            // first, then copy the pixels into a 96-DPI bitmap.
+            var converted = new FormatConvertedBitmap(source, PixelFormats.Bgra32, null, 0);
+            converted.Freeze();
+
             var wb = new WriteableBitmap(
-                source.PixelWidth,
-                source.PixelHeight,
+                converted.PixelWidth,
+                converted.PixelHeight,
                 96.0,
                 96.0,
-                source.Format,
-                source.Palette);
+                converted.Format,
+                converted.Palette);
 
             wb.Lock();
             try
             {
-                source.CopyPixels(
+                converted.CopyPixels(
                     Int32Rect.Empty,
                     wb.BackBuffer,
                     wb.BackBufferStride * wb.PixelHeight,
@@ -115,6 +122,7 @@ namespace QuickLook.Plugin.ComfyWebpViewer
                 wb.Unlock();
             }
 
+            wb.Freeze();
             return wb;
         }
 

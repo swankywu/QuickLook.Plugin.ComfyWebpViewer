@@ -46,6 +46,10 @@ namespace QuickLook.Plugin.ComfyWebpViewer
             Scroller.MouseLeave += OnPanEnd;
             Img.MouseLeftButtonDown += OnImageMouseDown;
             SizeChanged += OnSizeChanged;
+            // The viewer content is often placed inside an already-sized container, so the
+            // UserControl's SizeChanged never fires on first show. The viewport itself still
+            // reports a real size once laid out, so watch it to guarantee an initial fit.
+            Viewport.SizeChanged += OnViewportSizeChanged;
             Unloaded += (s, e) => Dispose();
 
             Loaded += (s, e) => Focus();
@@ -114,9 +118,9 @@ namespace QuickLook.Plugin.ComfyWebpViewer
                 ? Visibility.Visible
                 : Visibility.Collapsed;
 
-            Loaded += (s, e) => Fit();
-            if (IsLoaded)
-                Fit();
+            // Defer to a layout pass so the viewport already has a real size; otherwise
+            // Fit() would bail out on a zero-sized Scroller and never retry.
+            RequestFit();
         }
 
         private double AverageFps()
@@ -323,7 +327,13 @@ namespace QuickLook.Plugin.ComfyWebpViewer
         private void OnSizeChanged(object sender, SizeChangedEventArgs e)
         {
             if (_fitOnResize && _frames.Count > 0)
-                Fit();
+                RequestFit();
+        }
+
+        private void OnViewportSizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            if (_fitOnResize && _frames.Count > 0)
+                RequestFit();
         }
 
         private void OnZoomIn(object sender, RoutedEventArgs e)
@@ -338,10 +348,16 @@ namespace QuickLook.Plugin.ComfyWebpViewer
             ZoomAt(center, 1 / 1.25);
         }
 
-        private void OnFit(object sender, RoutedEventArgs e)
+        /// <summary>Schedule a fit on the next layout pass so the viewport size is final.</summary>
+        private void RequestFit()
         {
             _fitOnResize = true;
-            Fit();
+            Dispatcher.BeginInvoke(DispatcherPriority.Loaded, (Action)Fit);
+        }
+
+        private void OnFit(object sender, RoutedEventArgs e)
+        {
+            RequestFit();
         }
 
         private void ToggleFit()
@@ -352,8 +368,7 @@ namespace QuickLook.Plugin.ComfyWebpViewer
 
             if (Math.Abs(_scale - 1.0) < 0.001)
             {
-                _fitOnResize = true;
-                Fit();
+                RequestFit();
             }
             else
             {
@@ -368,16 +383,31 @@ namespace QuickLook.Plugin.ComfyWebpViewer
             if (source == null)
                 return;
 
-            var vw = Scroller.ViewportWidth;
-            var vh = Scroller.ViewportHeight;
-            if (vw <= 0 || vh <= 0)
+            // Prefer the viewport grid's allocated area (independent of scrollbar state).
+            // Fall back through the ScrollViewer's viewport and actual size, then bail if
+            // nothing has been laid out yet (a later SizeChanged will retry).
+            var availW = Viewport.ActualWidth;
+            var availH = Viewport.ActualHeight;
+            if (availW <= 1 || availH <= 1)
+            {
+                availW = Scroller.ViewportWidth;
+                availH = Scroller.ViewportHeight;
+            }
+            if (availW <= 1 || availH <= 1)
+            {
+                availW = Scroller.ActualWidth;
+                availH = Scroller.ActualHeight;
+            }
+            if (availW <= 1 || availH <= 1)
                 return;
 
-            var scale = Math.Min(vw / source.PixelWidth, vh / source.PixelHeight);
+            var scale = Math.Min(availW / source.PixelWidth, availH / source.PixelHeight);
             if (scale > 4.0)
                 scale = 4.0;
 
             ApplyScale(scale);
+            Scroller.ScrollToHorizontalOffset(0);
+            Scroller.ScrollToVerticalOffset(0);
         }
 
         private void ZoomAt(Point anchor, double factor)

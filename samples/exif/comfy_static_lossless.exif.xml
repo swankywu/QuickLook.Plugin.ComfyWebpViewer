@@ -1,0 +1,23 @@
+<Exif>
+  <_.MIME Label="MIME Type">image/webp</_.MIME>
+  <_.Size.Width Label="Image Width">640</_.Size.Width>
+  <_.Size.Height Label="Image Height">384</_.Size.Height>
+  <Exif.Image.Make Label="Camera make">workflow:{"nodes": [{"id": 3, "type": "KSampler", "title": "Sampler & Denoise"}, {"id": 6, "type": "CLIPTextEncode", "widgets_values": ["a & b"]}]}</Exif.Image.Make>
+  <Exif.Image.Model Label="Camera model">prompt:{"3": {"inputs": {"seed": 12345, "steps": 20, "cfg": 7.5, "sampler_name": "euler", "positive": ["6", 0], "model": ["4", 0]}, "class_type": "KSampler"}, "6": {"inputs": {"text": "a cinematic shot of a girl, 4k & 8k, &lg;lora:foo&gt;, tags & more", "clip": ["4", 1]}, "class_type": "CLIPTextEncode"}}</Exif.Image.Model>
+  <Exif.Photo.LensModel Label="Lens model"></Exif.Photo.LensModel>
+  <Exif.Image.DateTimeOriginal Label="Image timestamp"></Exif.Image.DateTimeOriginal>
+  <Exif.Photo.ExposureTime Label="Exposure time"></Exif.Photo.ExposureTime>
+  <Exif.Photo.ApertureValue Label="Aperture"></Exif.Photo.ApertureValue>
+  <Exif.Photo.ExposureBiasValue Label="Exposure bias"></Exif.Photo.ExposureBiasValue>
+  <Exif.Photo.Flash Label="Flash"></Exif.Photo.Flash>
+  <Exif._.FlashBias Label="Flash bias"></Exif._.FlashBias>
+  <Exif.Photo.FocalLength Label="Focal length"></Exif.Photo.FocalLength>
+  <Exif.Photo.SubjectDistance Label="Subject distance"></Exif.Photo.SubjectDistance>
+  <Exif.Photo.ISOSpeedRatings Label="ISO speed"></Exif.Photo.ISOSpeedRatings>
+  <Exif.Photo.ExposureProgram Label="Exposure mode"></Exif.Photo.ExposureProgram>
+  <Exif.Photo.MeteringMode Label="Metering mode"></Exif.Photo.MeteringMode>
+  <Exif._.Macro Label="Macro mode"></Exif._.Macro>
+  <Exif._.Quality Label="Image quality"></Exif._.Quality>
+  <Exif._.WhiteBalance Label="White balance"></Exif._.WhiteBalance>
+  <Exif.Image.Orientation Label="Orientation"></Exif.Image.Orientation>
+</Exif>

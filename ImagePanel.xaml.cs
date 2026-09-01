@@ -333,7 +333,7 @@ namespace QuickLook.Plugin.ComfyWebpViewer
         private void OnViewportSizeChanged(object sender, SizeChangedEventArgs e)
         {
             if (_fitOnResize && _frames.Count > 0)
-                RequestFit();
+                Fit();
         }
 
         private void OnZoomIn(object sender, RoutedEventArgs e)
@@ -348,11 +348,11 @@ namespace QuickLook.Plugin.ComfyWebpViewer
             ZoomAt(center, 1 / 1.25);
         }
 
-        /// <summary>Schedule a fit on the next layout pass so the viewport size is final.</summary>
+        /// <summary>Schedule a fit after the next layout/render pass so the viewport size is final.</summary>
         private void RequestFit()
         {
             _fitOnResize = true;
-            Dispatcher.BeginInvoke(DispatcherPriority.Loaded, (Action)Fit);
+            Dispatcher.BeginInvoke(DispatcherPriority.ContextIdle, (Action)Fit);
         }
 
         private void OnFit(object sender, RoutedEventArgs e)
@@ -401,9 +401,20 @@ namespace QuickLook.Plugin.ComfyWebpViewer
             if (availW <= 1 || availH <= 1)
                 return;
 
-            var scale = Math.Min(availW / source.PixelWidth, availH / source.PixelHeight);
+            // Use the image's natural DIP size so DPI scaling is taken into account.
+            var imgW = source.Width;
+            var imgH = source.Height;
+            if (double.IsNaN(imgW) || double.IsNaN(imgH) || imgW <= 0 || imgH <= 0)
+            {
+                imgW = source.PixelWidth;
+                imgH = source.PixelHeight;
+            }
+
+            var scale = Math.Min(availW / imgW, availH / imgH);
             if (scale > 4.0)
                 scale = 4.0;
+
+            ProcessHelper.WriteLog($"ComfyWebpViewer Fit: viewport=({availW:0.##},{availH:0.##}) img=({imgW:0.##},{imgH:0.##}) scale={scale:0.###}");
 
             ApplyScale(scale);
             Scroller.ScrollToHorizontalOffset(0);
@@ -416,18 +427,26 @@ namespace QuickLook.Plugin.ComfyWebpViewer
             if (source == null)
                 return;
 
+            var imgW = source.Width;
+            var imgH = source.Height;
+            if (double.IsNaN(imgW) || double.IsNaN(imgH) || imgW <= 0 || imgH <= 0)
+            {
+                imgW = source.PixelWidth;
+                imgH = source.PixelHeight;
+            }
+
             var oldScale = _scale;
             var newScale = Clamp(oldScale * factor);
             if (Math.Abs(newScale - oldScale) < 1e-6)
                 return;
 
-            var contentX = (anchor.X + Scroller.HorizontalOffset - OffsetOf(Scroller.ViewportWidth, source.PixelWidth * oldScale)) / oldScale;
-            var contentY = (anchor.Y + Scroller.VerticalOffset - OffsetOf(Scroller.ViewportHeight, source.PixelHeight * oldScale)) / oldScale;
+            var contentX = (anchor.X + Scroller.HorizontalOffset - OffsetOf(Scroller.ViewportWidth, imgW * oldScale)) / oldScale;
+            var contentY = (anchor.Y + Scroller.VerticalOffset - OffsetOf(Scroller.ViewportHeight, imgH * oldScale)) / oldScale;
 
             ApplyScale(newScale);
 
-            var newExtentW = source.PixelWidth * newScale;
-            var newExtentH = source.PixelHeight * newScale;
+            var newExtentW = imgW * newScale;
+            var newExtentH = imgH * newScale;
             Scroller.ScrollToHorizontalOffset(contentX * newScale - anchor.X + OffsetOf(Scroller.ViewportWidth, newExtentW));
             Scroller.ScrollToVerticalOffset(contentY * newScale - anchor.Y + OffsetOf(Scroller.ViewportHeight, newExtentH));
             Scroller.UpdateLayout();

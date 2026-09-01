@@ -5,7 +5,7 @@
              Foreground="#FFE6E6E6"
              UseLayoutRounding="True"
              SnapsToDevicePixels="True"
-             Focusable="True">
+             Focusable="False">
 
     <UserControl.Resources>
         <!-- Transparency checkerboard, only shown when the image has an alpha channel. -->

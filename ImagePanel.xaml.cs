@@ -53,7 +53,9 @@ namespace QuickLook.Plugin.ComfyWebpViewer
             Viewport.SizeChanged += OnViewportSizeChanged;
             Unloaded += (s, e) => Dispose();
 
-            Loaded += (s, e) => Focus();
+            // IMPORTANT: do NOT call Focus() here. QuickLook switches files with a global
+            // keyboard hook that only fires while the focus stays in the explorer window.
+            // Stealing focus into this panel makes the arrow keys stop switching files.
         }
 
         // ------------------------------------------------------------------ loading

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using QuickLook.Common.Helpers;
 
 namespace QuickLook.Plugin.ComfyWebpViewer
 {
@@ -146,8 +147,9 @@ namespace QuickLook.Plugin.ComfyWebpViewer
                     return file.Width > 0 && file.Height > 0 ? file : null;
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                ProcessHelper.WriteLog("ComfyWebpViewer WebpFile.Read failed for " + path + "\n" + ex);
                 return null;
             }
         }

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -86,7 +87,15 @@ namespace QuickLook.Plugin.ComfyWebpViewer
             _delays.AddRange(result.Delays);
 
             CheckerLayer.Visibility = info.HasAlpha ? Visibility.Visible : Visibility.Collapsed;
-            Img.Source = _frames[0];
+
+            // WIC reports the WebP's embedded DPI (often 72). WPF would otherwise treat
+            // the image as physically larger than its pixel dimensions. Force the Image
+            // control to lay out at the pixel size so all zoom/fit math is pixel-based.
+            var first = _frames[0];
+            Img.Source = first;
+            Img.Width = first.PixelWidth;
+            Img.Height = first.PixelHeight;
+
             _frameIndex = 0;
             _fitOnResize = true;
 
@@ -383,38 +392,51 @@ namespace QuickLook.Plugin.ComfyWebpViewer
             if (source == null)
                 return;
 
-            // Prefer the viewport grid's allocated area (independent of scrollbar state).
-            // Fall back through the ScrollViewer's viewport and actual size, then bail if
-            // nothing has been laid out yet (a later SizeChanged will retry).
-            var availW = Viewport.ActualWidth;
-            var availH = Viewport.ActualHeight;
-            if (availW <= 1 || availH <= 1)
-            {
-                availW = Scroller.ViewportWidth;
-                availH = Scroller.ViewportHeight;
-            }
-            if (availW <= 1 || availH <= 1)
-            {
-                availW = Scroller.ActualWidth;
-                availH = Scroller.ActualHeight;
-            }
-            if (availW <= 1 || availH <= 1)
-                return;
+            // The ScrollViewer's ViewportWidth/Height is the true content area (excluding
+            // scrollbars). Viewport.ActualWidth includes the scrollbar track and can be
+            // larger, while Scroller.ActualWidth can be zero during initial layout.
+            // We therefore prefer Scroller.ViewportWidth, then fall back to other values.
+            var candNames = new[] { "Scroller.Viewport", "Viewport.Actual", "Scroller.Actual", "UserControl.Actual" };
+            var candWs = new[] { Scroller.ViewportWidth, Viewport.ActualWidth, Scroller.ActualWidth, ActualWidth };
+            var candHs = new[] { Scroller.ViewportHeight, Viewport.ActualHeight, Scroller.ActualHeight, ActualHeight };
 
-            // Use the image's natural DIP size so DPI scaling is taken into account.
-            var imgW = source.Width;
-            var imgH = source.Height;
-            if (double.IsNaN(imgW) || double.IsNaN(imgH) || imgW <= 0 || imgH <= 0)
+            double availW = 0, availH = 0;
+            string chosen = null;
+            for (var i = 0; i < candNames.Length; i++)
             {
-                imgW = source.PixelWidth;
-                imgH = source.PixelHeight;
+                if (candWs[i] > 1 && candHs[i] > 1)
+                {
+                    chosen = candNames[i];
+                    availW = candWs[i];
+                    availH = candHs[i];
+                    break;
+                }
             }
+
+            if (chosen == null)
+            {
+                // Layout isn't ready yet; a later SizeChanged will retry.
+                ProcessHelper.WriteLog("ComfyWebpViewer Fit: no usable viewport yet, will retry on SizeChanged");
+                return;
+            }
+
+            // Image.Width/Height are forced to the pixel dimensions in Load(), so fit
+            // math is pixel-based. This avoids webp files whose embedded DPI is not 96
+            // being treated as larger than they really are.
+            var imgW = (double)source.PixelWidth;
+            var imgH = (double)source.PixelHeight;
 
             var scale = Math.Min(availW / imgW, availH / imgH);
             if (scale > 4.0)
                 scale = 4.0;
 
-            ProcessHelper.WriteLog($"ComfyWebpViewer Fit: viewport=({availW:0.##},{availH:0.##}) img=({imgW:0.##},{imgH:0.##}) scale={scale:0.###}");
+            var sb = new StringBuilder();
+            sb.Append("ComfyWebpViewer Fit: chosen=").Append(chosen);
+            sb.Append(" candidates=");
+            for (var i = 0; i < candNames.Length; i++)
+                sb.Append($"[{candNames[i]}=({candWs[i]:0.##},{candHs[i]:0.##})]");
+            sb.Append($" img=({imgW:0.##},{imgH:0.##}) dpi=({source.DpiX:0.##},{source.DpiY:0.##}) scale={scale:0.###}");
+            ProcessHelper.WriteLog(sb.ToString());
 
             ApplyScale(scale);
             Scroller.ScrollToHorizontalOffset(0);
@@ -427,13 +449,9 @@ namespace QuickLook.Plugin.ComfyWebpViewer
             if (source == null)
                 return;
 
-            var imgW = source.Width;
-            var imgH = source.Height;
-            if (double.IsNaN(imgW) || double.IsNaN(imgH) || imgW <= 0 || imgH <= 0)
-            {
-                imgW = source.PixelWidth;
-                imgH = source.PixelHeight;
-            }
+            // Pixel-based zoom, matching the forced Image.Width/Height set in Load().
+            var imgW = (double)source.PixelWidth;
+            var imgH = (double)source.PixelHeight;
 
             var oldScale = _scale;
             var newScale = Clamp(oldScale * factor);

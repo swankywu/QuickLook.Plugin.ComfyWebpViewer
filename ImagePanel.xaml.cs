@@ -7,6 +7,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Shapes;
 using System.Windows.Threading;
 using QuickLook.Common.Helpers;
 
@@ -145,6 +146,67 @@ namespace QuickLook.Plugin.ComfyWebpViewer
 
         // ---------------------------------------------------------------- metadata
 
+        private sealed class MetaSection
+        {
+            public StackPanel Panel;
+            public readonly List<string> Lines = new List<string>();
+        }
+
+        private static readonly Geometry CopyIconGeometry = Geometry.Parse(
+            "M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z");
+        private static readonly Geometry CheckIconGeometry = Geometry.Parse(
+            "M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z");
+
+        private Button MakeCopyButton(Func<string> getter)
+        {
+            var btn = new Button { Style = (Style)FindResource("CopyButton") };
+
+            var icon = new Path
+            {
+                Data = CopyIconGeometry,
+                Stretch = Stretch.Uniform,
+                Width = 13,
+                Height = 13,
+                Fill = new SolidColorBrush(Color.FromRgb(0x9E, 0x9E, 0x9E))
+            };
+            btn.Content = icon;
+            btn.ToolTip = T("Meta_Copy", "复制", "Copy");
+
+            btn.Click += (s, e) =>
+            {
+                var text = getter();
+                if (string.IsNullOrEmpty(text))
+                    return;
+
+                try
+                {
+                    Clipboard.SetText(text);
+                }
+                catch (Exception ex)
+                {
+                    ProcessHelper.WriteLog("ComfyWebpViewer Copy failed: " + ex.Message);
+                    return;
+                }
+
+                // Brief visual feedback: swap to a green check, then revert.
+                icon.Data = CheckIconGeometry;
+                icon.Fill = new SolidColorBrush(Color.FromRgb(0x6D, 0xC4, 0x6A));
+                btn.ToolTip = T("Meta_Copied", "已复制", "Copied");
+
+                var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1.2) };
+                timer.Tick += (o, ev) =>
+                {
+                    icon.Data = CopyIconGeometry;
+                    icon.Fill = new SolidColorBrush(Color.FromRgb(0x9E, 0x9E, 0x9E));
+                    btn.ToolTip = T("Meta_Copy", "复制", "Copy");
+                    timer.Stop();
+                };
+                timer.Start();
+            };
+
+            return btn;
+        }
+
         private void BuildMetadata(WebpFile info)
         {
             MetaStack.Children.Clear();
@@ -181,9 +243,13 @@ namespace QuickLook.Plugin.ComfyWebpViewer
                 AddTextBlock("workflow (UI)", summary.WorkflowJson, mono: true);
         }
 
-        private StackPanel AddGroup(string header)
+        private MetaSection AddGroup(string header)
         {
-            var panel = new StackPanel { Margin = new Thickness(0, 4, 0, 10) };
+            var section = new MetaSection { Panel = new StackPanel { Margin = new Thickness(0, 4, 0, 10) } };
+
+            var headerRow = new Grid { Margin = new Thickness(0, 0, 0, 6) };
+            headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
             var label = new TextBlock
             {
@@ -191,15 +257,21 @@ namespace QuickLook.Plugin.ComfyWebpViewer
                 FontSize = 12,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = new SolidColorBrush(Color.FromRgb(0x7E, 0xC4, 0xFF)),
-                Margin = new Thickness(0, 0, 0, 6)
+                VerticalAlignment = VerticalAlignment.Center
             };
+            Grid.SetColumn(label, 0);
 
-            panel.Children.Add(label);
-            MetaStack.Children.Add(panel);
-            return panel;
+            var copy = MakeCopyButton(() => string.Join("\n", section.Lines));
+            Grid.SetColumn(copy, 1);
+
+            headerRow.Children.Add(label);
+            headerRow.Children.Add(copy);
+            section.Panel.Children.Add(headerRow);
+            MetaStack.Children.Add(section.Panel);
+            return section;
         }
 
-        private void AddRow(Panel parent, string label, string value)
+        private void AddRow(MetaSection section, string label, string value)
         {
             var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
 
@@ -213,21 +285,36 @@ namespace QuickLook.Plugin.ComfyWebpViewer
 
             row.Children.Add(l);
             row.Children.Add(v);
-            parent.Children.Add(row);
+            section.Panel.Children.Add(row);
+
+            if (!string.IsNullOrWhiteSpace(label) && !string.IsNullOrWhiteSpace(value))
+                section.Lines.Add(label + ": " + value.Trim());
         }
 
         private void AddTextBlock(string header, string text, bool mono = false)
         {
             var panel = new StackPanel { Margin = new Thickness(0, 6, 0, 12) };
 
-            panel.Children.Add(new TextBlock
+            var headerRow = new Grid { Margin = new Thickness(0, 0, 0, 6) };
+            headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var title = new TextBlock
             {
                 Text = header,
                 FontSize = 12,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = new SolidColorBrush(Color.FromRgb(0x7E, 0xC4, 0xFF)),
-                Margin = new Thickness(0, 0, 0, 6)
-            });
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(title, 0);
+
+            var copy = MakeCopyButton(() => text);
+            Grid.SetColumn(copy, 1);
+
+            headerRow.Children.Add(title);
+            headerRow.Children.Add(copy);
+            panel.Children.Add(headerRow);
 
             var box = new TextBox
             {

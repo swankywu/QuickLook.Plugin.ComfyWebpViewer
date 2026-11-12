@@ -15,6 +15,7 @@ This plugin bypasses exiv2 entirely: it parses the WebP RIFF container and EXIF 
 - Supports **static lossy / static lossless / animated WebP**
 - Automatically detects and parses **ComfyUI prompt / workflow** metadata
 - Metadata drawer (right side) shows: Sampler, Steps, CFG, Seed, Nodes, positive/negative prompts, full prompt API JSON, workflow UI JSON
+- A copy icon sits next to each metadata section title; click it to copy that section's content to the clipboard
 - Correct fit on high-DPI / non-96-DPI WebP — no cropping, no stretching
 - Mouse interactions: wheel zoom, Ctrl + wheel fast zoom, drag to pan, double-click to toggle fit / 100%
 - Does not steal keyboard focus, so arrow keys still switch files in Explorer
